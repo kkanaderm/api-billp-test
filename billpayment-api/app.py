@@ -211,6 +211,16 @@ def bill_payment(request: BillPaymentRequest) -> BillPaymentResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@app.post("/bell/v1/billpayment/payment", response_model=BillPaymentResponse)
+def bill_payment_bell(request: BillPaymentRequest) -> BillPaymentResponse:
+    return bill_payment(request)
+
+
+@app.post("/pang/v1/billpayment/payment", response_model=BillPaymentResponse)
+def bill_payment_pang(request: BillPaymentRequest) -> BillPaymentResponse:
+    return bill_payment(request)
+
+
 @app.post("/v1/billpayment/lookup", response_model=BillLookupResponse)
 def bill_lookup(request: BillLookupRequest) -> BillLookupResponse:
     try:
@@ -268,6 +278,16 @@ def bill_lookup(request: BillLookupRequest) -> BillLookupResponse:
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/bell/v1/billpayment/lookup", response_model=BillLookupResponse)
+def bill_lookup_bell(request: BillLookupRequest) -> BillLookupResponse:
+    return bill_lookup(request)
+
+
+@app.post("/pang/v1/billpayment/lookup", response_model=BillLookupResponse)
+def bill_lookup_pang(request: BillLookupRequest) -> BillLookupResponse:
+    return bill_lookup(request)
 
 
 @app.get("/health")
