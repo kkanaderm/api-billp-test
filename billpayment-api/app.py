@@ -8,6 +8,31 @@ from pydantic import BaseModel, field_validator
 app = FastAPI(title="KBank BillPayment API", version="1.0.0")
 
 
+# Mock data for inquiry/lookup. Replace this with real database queries in production.
+LOOKUP_DATA = {
+    ("300000025751", "1733084"): {
+        "tranAmount": "120.00",
+        "terminalNo": "xxxxxxx8888",
+        "billerType": "",
+        "info1": "",
+        "info2": "",
+        "info3": "",
+        "duedate": "",
+        "rtpReference": "",
+    },
+    ("300000025752", "1733085"): {
+        "tranAmount": "250.00",
+        "terminalNo": "xxxxxxx8888",
+        "billerType": "",
+        "info1": "",
+        "info2": "",
+        "info3": "",
+        "duedate": "",
+        "rtpReference": "",
+    },
+}
+
+
 class BillPaymentRequest(BaseModel):
     functionName: str
     transactionId: str
@@ -121,6 +146,20 @@ class BillLookupRequest(BaseModel):
             raise ValueError('senderBankCode must be "Kbank"')
         return value
 
+    @field_validator("terminalNo")
+    @classmethod
+    def validate_terminal_no(cls, value: str) -> str:
+        if value != "xxxxxxx8888":
+            raise ValueError('terminalNo must be "xxxxxxx8888" for this mock inquiry')
+        return value
+
+    @field_validator("channelCode")
+    @classmethod
+    def validate_channel_code(cls, value: str) -> str:
+        if value != "MOB":
+            raise ValueError('channelCode must be "MOB" for this mock inquiry')
+        return value
+
     @field_validator("apiKey")
     @classmethod
     def validate_api_key(cls, value: str) -> str:
@@ -176,16 +215,56 @@ def bill_payment(request: BillPaymentRequest) -> BillPaymentResponse:
 def bill_lookup(request: BillLookupRequest) -> BillLookupResponse:
     try:
         response_datetime = datetime.now().astimezone().isoformat(timespec="milliseconds")
+        lookup_key = (request.reference1, request.reference2)
+        record = LOOKUP_DATA.get(lookup_key)
+
+        if record is None:
+            return BillLookupResponse(
+                transactionId=request.transactionId,
+                transactionDateTime=response_datetime,
+                billerTransactionId=request.transactionId,
+                responseCode="1001",
+                responseDescription="Data not found",
+                billerType=request.billerType,
+                billerId=request.billerId,
+                terminalNo=request.terminalNo,
+                reference1=request.reference1,
+                reference2=request.reference2,
+            )
+
+        if request.tranAmount and request.tranAmount != record["tranAmount"]:
+            return BillLookupResponse(
+                transactionId=request.transactionId,
+                transactionDateTime=response_datetime,
+                billerTransactionId=request.transactionId,
+                responseCode="1002",
+                responseDescription="Invalid amount",
+                billerType=record["billerType"],
+                billerId=request.billerId,
+                terminalNo=record["terminalNo"],
+                reference1=request.reference1,
+                reference2=request.reference2,
+                info1=record["info1"],
+                info2=record["info2"],
+                info3=record["info3"],
+                duedate=record["duedate"],
+                rtpReference=record["rtpReference"],
+            )
 
         return BillLookupResponse(
             transactionId=request.transactionId,
             transactionDateTime=response_datetime,
             billerTransactionId=request.transactionId,
-            billerType=request.billerType,
+            billerType=record["billerType"],
             billerId=request.billerId,
-            terminalNo=request.terminalNo,
+            terminalNo=record["terminalNo"],
             reference1=request.reference1,
             reference2=request.reference2,
+            info1=record["info1"],
+            info2=record["info2"],
+            info3=record["info3"],
+            duedate=record["duedate"],
+            rtpReference=record["rtpReference"],
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
