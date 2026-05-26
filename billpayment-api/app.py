@@ -85,6 +85,78 @@ class BillPaymentResponse(BaseModel):
     rsAppId: str = ""
 
 
+class BillLookupRequest(BaseModel):
+    functionName: str
+    transactionId: str
+    transactionDateTime: datetime
+    billerType: str = ""
+    billerId: str
+    terminalNo: str
+    channelCode: str = ""
+    tranAmount: str = ""
+    senderBankCode: str
+    reference1: str = ""
+    reference2: str = ""
+    language: Optional[str] = "EN"
+    apiKey: str
+
+    @field_validator("functionName")
+    @classmethod
+    def validate_function_name(cls, value: str) -> str:
+        if value != "BillLookup":
+            raise ValueError('functionName must be "BillLookup"')
+        return value
+
+    @field_validator("billerId")
+    @classmethod
+    def validate_biller_id(cls, value: str) -> str:
+        if value != "98499":
+            raise ValueError('billerId must be "98499"')
+        return value
+
+    @field_validator("senderBankCode")
+    @classmethod
+    def validate_sender_bank_code(cls, value: str) -> str:
+        if value != "Kbank":
+            raise ValueError('senderBankCode must be "Kbank"')
+        return value
+
+    @field_validator("apiKey")
+    @classmethod
+    def validate_api_key(cls, value: str) -> str:
+        if value not in {"SequreKey123", "SecureKey123"}:
+            raise ValueError('apiKey must be "SequreKey123" or "SecureKey123"')
+        return value
+
+    @field_validator("transactionDateTime")
+    @classmethod
+    def validate_transaction_datetime_today(cls, value: datetime) -> datetime:
+        current_date = datetime.now(value.tzinfo).date() if value.tzinfo else datetime.now().date()
+        if value.date() != current_date:
+            raise ValueError("transactionDateTime must be today")
+        return value
+
+
+class BillLookupResponse(BaseModel):
+    functionName: str = "BillLookupResponse"
+    transactionId: str
+    transactionDateTime: str
+    billerTransactionId: str
+    responseCode: str = "0000"
+    responseDescription: str = "Success"
+    billerType: str
+    billerId: str
+    terminalNo: str
+    reference1: str
+    reference2: str
+    info1: str = ""
+    info2: str = ""
+    info3: str = ""
+    duedate: str = ""
+    rtpReference: str = ""
+    rsAppId: str = ""
+
+
 @app.post("/v1/billpayment/payment", response_model=BillPaymentResponse)
 def bill_payment(request: BillPaymentRequest) -> BillPaymentResponse:
     try:
@@ -95,6 +167,25 @@ def bill_payment(request: BillPaymentRequest) -> BillPaymentResponse:
             responseDateTime=response_datetime,
             billerTransactionId=request.transactionId,
             terminalNo=request.terminalNo,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/v1/billpayment/lookup", response_model=BillLookupResponse)
+def bill_lookup(request: BillLookupRequest) -> BillLookupResponse:
+    try:
+        response_datetime = datetime.now().astimezone().isoformat(timespec="milliseconds")
+
+        return BillLookupResponse(
+            transactionId=request.transactionId,
+            transactionDateTime=response_datetime,
+            billerTransactionId=request.transactionId,
+            billerType=request.billerType,
+            billerId=request.billerId,
+            terminalNo=request.terminalNo,
+            reference1=request.reference1,
+            reference2=request.reference2,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
